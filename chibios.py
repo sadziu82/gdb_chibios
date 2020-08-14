@@ -14,7 +14,7 @@ class ChibiThread(object):
   next_lwp = 1
   def __init__(self, tp):
     self.tp = tp
-    self.name = tp.dereference()['p_name'].string()
+    self.name = tp.dereference()['name'].string()
     self.lwp = ChibiThread.next_lwp
     ChibiThread.next_lwp += 1
     self._update()
@@ -35,7 +35,7 @@ class ChibiThread(object):
 
   def _update(self):
     # Update name in case it changed
-    self.name = self.tp.dereference()['p_name'].string()
+    self.name = self.tp.dereference()['name'].string()
     self.regs = list(reg_cache) # Make a copy of the list
     if self.tp == currp:
       self.active = True
@@ -43,7 +43,7 @@ class ChibiThread(object):
       return
 
     self.active = False
-    r13 = self.tp.dereference()['p_ctx']['r13']
+    r13 = self.tp.dereference()['ctx']['sp']
     longtype = gdb.lookup_type('unsigned long')
     self.regs[13] = int((r13+1).cast(longtype))
     self.regs[15] = int(r13['lr'].cast(longtype))
@@ -108,7 +108,7 @@ def stop_handler(event=None):
   # Save register cache
   reg_cache = get_cpu_regs()
   try:
-    currp = gdb.parse_and_eval('rlist.r_current')
+    currp = gdb.parse_and_eval('ch.rlist.current')
   except:
     print("Warning: Failed to read current thread pointer.");
     currp = None
@@ -117,10 +117,10 @@ def stop_handler(event=None):
 
   # Update our list of ChibiOS threads from target
   try:
-    tmp_thread_list = [gdb.parse_and_eval('rlist.r_newer')]
+    tmp_thread_list = [gdb.parse_and_eval('ch.rlist.newer')]
     while True:
-      tp = tmp_thread_list[-1].dereference()['p_newer']
-      if (tp == tmp_thread_list[0]) or (tp.dereference()['p_ctx']['r13'] == 0):
+      tp = tmp_thread_list[-1].dereference()['newer']
+      if (tp == tmp_thread_list[0]) or (tp.dereference()['ctx']['sp'] == 0):
         break
       tmp_thread_list.append(tp)
     # Announce dead threads
